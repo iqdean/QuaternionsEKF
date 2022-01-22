@@ -1,0 +1,234 @@
+From thepoorengineer.com website
+> code to compute quaternion from IMU sensor and visualize in pygame 3d display <
+
+arduino <--- serial ----> PC
+reads IMU                 reads IMU data, computes quaternion, and displays 
+& sends                   resulting orientation of IMU in a PYGAME 3D cube
+raw imu data
+to PC
+
+Objective - replace arduino / serial link with RPI3B / UDP Socket to get
+
+RaspberryPI <----- WIFI UDP SOcket ---> PC
+reads IMU & sends                   reads IMU data, computes quaternion, and displays
+raw imu data to PC		    resulting orientation of IMU in a PYGAME 3D cube
+
+POC udp socket code  @ SWDEV/python/sockets
+-------------------------------------------
+udp_server1.py  <---- WIFI UDP Socket -----> udp_client1.py
+ bind to 0.0.0.0                             connect to IP_of_server
+   request      <-----------------------------| send request
+   reads IMU data
+   sends response --------------------------->| rcv IMU data
+
+
+Implementing Rotations with MEMS Gyrometer Data
+@ https://thepoorengineer.com/en/quaternion/
+download 
+https://thepoorengineer.com/wp-content/uploads/2018/07/PythonIMU_naive.zip
+
+PythonIMU_naive
+	Wireframe_naive.py
+	readSensor_naive.py
+	Quaternion_naive.py
+	BoardDisplay_naive.py
+
+BoardDisplay_naive.py
+----------------------
+import readSensor_naive as rs
+
+if __name__ == '__main__':
+    portName = '/dev/ttyUSB0'
+    # portName = 'COM6'
+    baudRate = 115200
+    dataNumBytes = 2  # number of bytes of 1 data point
+    numParams = 9  # number of plots in 1 graph
+    s = rs.SerialRead(portName, baudRate, dataNumBytes, numParams)  # initializes all required variables
+    s.readSerialStart()  # starts background thread
+
+    block = initializeCube()
+    pv = ProjectionViewer(640, 480, block)
+    pv.run(s)
+
+-- BoardDisplay_naive.py Projectionviewer -> run(sensorinstance)
+
+             s = rs.SerialRead(...)
+                       \/
+    def run(self, sensorInstance):
+        """ Create a pygame screen until it is closed. """
+        running = True
+        loopRate = 50
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                    sensorInstance.close()
+            self.clock.tick(loopRate)
+            data = sensorInstance.getSerialData()                    <<< data = sensorInstance.getSerialData()
+            angularVeloctiy = [data[0], data[1], data[2]]                returns data[18] 18byte bytearray[0:17]
+            self.wireframe.quatRotate(angularVeloctiy, 1/loopRate)
+            self.display()
+            pygame.display.flip()
+
+
+From AruduinoExtractSensorData folder
+
+
+void loop() {
+  timeSync(loopTime);
+  sensor.getAngVel(&gyroData);  // Gyro Data                int X, int Y, int Z   arduino int is 16bit
+  sensor.getAccel(&accelData);  // Accelerometer Data
+  sensor.getMag(&magData);      // Magnetometer Data
+  
+  sendToPC(&gyroData.X, &gyroData.Y, &gyroData.Z,           data[0], data[1], data[2],     gyro X, Y, Z
+           &accelData.X, &accelData.Y, &accelData.Z,        data[3], data[4], data[5],     acel X, Y, Z
+           &magData.X, &magData.Y, &magData.Z);		    data[6], data[7], data[9]      mag  X, Y, Z
+}
+
+
+===> update udp_server1.py to read and send gyro, accel, & mag data in order above <<=====
+
+On the RPI3B: imu_server.py - reads sensor data and sends over udp socket
+
+1. create paired down version of berryIMU -> IMU.py called IMU2.py
+2. turn udp_server1.py to imu_server.py
+      - use IMU2.py to init berryIMU and read gyro,accel, mag
+	- waits for PC to request, reads sensor data and sends raw data over udp socket
+
+On PC: 
+3. modify 3-QUATERNION-ROTATION/PygameQuaternionRotation/BoardDisplay_naive.py
+   to
+3.1) replace readSensor_naive.py with readIMU_naive.py
+
+BoardDisplay_naive.py
+
+BoardDisplay_naive.py
+----------------------
+import readSensor_naive as rs                   -----> import readIMU_naive as rs
+
+if __name__ == '__main__':
+    portName = '/dev/ttyUSB0'
+    # portName = 'COM6'
+    baudRate = 115200
+    dataNumBytes = 2  # number of bytes of 1 data point
+    numParams = 9  # number of plots in 1 graph
+    s = rs.SerialRead(portName, baudRate, dataNumBytes, numParams) \  ------> s = rs.IMUread()    class IMUread:    
+    s.readSerialStart()  # starts background thread                /
+
+    block = initializeCube()
+    pv = ProjectionViewer(640, 480, block)
+    pv.run(s)
+
+-- BoardDisplay_naive.py Projectionviewer -> run(sensorinstance)
+
+             s = rs.SerialRead(...)
+                       \/
+    def run(self, sensorInstance):
+        """ Create a pygame screen until it is closed. """
+        running = True
+        loopRate = 50
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                    sensorInstance.close()
+            self.clock.tick(loopRate)
+            data = sensorInstance.getSerialData()                    <<< data = sensorInstance.getSerialData()
+            angularVeloctiy = [data[0], data[1], data[2]]               
+            self.wireframe.quatRotate(angularVeloctiy, 1/loopRate)
+            self.display()
+            pygame.display.flip()
+
+
+
+---- readIMU_naive.py ----
+
+
+
+
+
+readSensor_naive.py -> SerialRead:getSerialData() 
+
+
+# REF:https://docs.python.org/3/library/struct.html
+#   Format C-type    Python Type    Standard Size 	
+#    'h'   short      integer            2        in python, integer is always 4 bytes
+#    value (4bytes) = struct.unpack('h', data)    unpacks 2 bytes from data into value
+
+# REF: https://stackoverflow.com/questions/4012340/colon-in-python-list-index
+# : is the delimiter of the slice syntax to 'slice out' sub-parts in sequences , [start:end]
+# [1:5] is equivalent to "from 1 to 5" (5 not included)     <<< NOTE: 5 IS NOT INCLUDED, so only [1][2][3][4]
+
+# dataNumBytes = 2  # number of bytes of 1 data point
+# numParams = 9  # number of plots in 1 graph
+
+
+    def __init__(self, serialPort='/dev/ttyUSB0', serialBaud=38400, dataNumBytes=2, numParams=1):
+      ...
+
+      self.data = np.zeros(numParams)
+
+         if dataNumBytes == 2:
+            self.dataType = 'h'     # 2 byte integer
+        elif dataNumBytes == 4:
+            self.dataType = 'f'     # 4 byte float
+ 
+      self.rawData = bytearray(numParams * dataNumBytes)    # 9 x 2 = 18   self.raw = bytearray[18]
+
+
+    def readSerialStart(self):
+        if self.thread == None:
+            self.thread = Thread(target=self.backgroundThread)
+            self.thread.start()
+            # Block till we start receiving values
+            while self.isReceiving != True:
+                time.sleep(0.1)
+
+    def backgroundThread(self):    # retrieve data
+        time.sleep(1.0)  # give some buffer time for retrieving data
+        self.serialConnection.reset_input_buffer()
+        while (self.isRun):
+            self.serialConnection.readinto(self.rawData)   <-- backgroundThread reads 18 bytes into self.rawData[18]
+            self.isReceiving = True
+            #print(self.rawData)
+
+
+
+    def getSerialData(self):
+        privateData = self.rawData[:]      # self.rawData[18]   copies self.rawData[:] -> privateData 
+                                           #                    so doesn't interfer w
+        for i in range(self.numParams):
+            data = privateData[(i*self.dataNumBytes):(self.dataNumBytes + i*self.dataNumBytes)]
+            data = privateData[(i*self.dataNumBytes):(self.dataNumBytes + i*self.dataNumBytes)]
+		#                                                                                             data
+		#                 [ 0                   :       2           + 0                   ]   [0:2]   0 1
+		#                 [ 1*2                 :       2           + 1*2                 ]   [2:4]   2 3 
+		#                 [ 2*2                 :       2           + 2*2                 ]   [4:6]   4 5
+		#                 [ 3*2                 :       2           + 3*2                 ]   [6:8]   6 7
+		#                 ...
+		#                 [ 6*2]                :       2           + 6*2                 ]   [12:14] 12 13
+		#                 [ 7*2                 :       2           + 7*2                 ]   [14:16] 14 15
+		#                 [ 8*2                 :       2           + 8*2                 ]   [16:18] 16 17
+                                     'h'
+            value,  = struct.unpack(self.dataType, data)
+            if i == 0:
+                value = ((value * 0.00875) - 0.464874541896) / 180.0 * np.pi
+            elif i == 1:
+                value = ((value * 0.00875) - 9.04805461852) / 180.0 * np.pi
+            elif i == 2:
+                value = ((value * 0.00875) + 0.23642053973) / 180.0 * np.pi
+            elif i == 3:
+                value = (value * 0.061) - 48.9882695319
+            elif i == 4:
+                value = (value * 0.061) - 58.9882695319
+            elif i == 5:
+                value = (value * 0.061) - 75.9732905214
+            elif i == 6:
+                value = value * 0.080
+            elif i == 7:
+                value = value * 0.080
+            elif i == 8:
+                value = value * 0.080
+            self.data[i] = value
+        return self.data
+
