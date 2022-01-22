@@ -4,7 +4,7 @@ PC Side code for Quaternion animation based on IMU Sensor data
 # Block Diagram
 
 ```
- POC1:
+ Proof of Concept 1:
 
  3-QUATERNION-ROTATION                          AHRS_RPI3B
      |                                              |
