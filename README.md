@@ -6,7 +6,7 @@ PC Side code for Quaternion animation based on IMU Sensor data
 ```
  Proof of Concept 1:
 
- 3-QUATERNION-ROTATION                          AHRS_RPI3B
+ 3-QUATERNION-ROTATION/PythonIMU_naive          AHRS_RPI3B
      |                                              |
      PC              udp socket over wifi         RPI3B
  readIMU_naive.py---------> request -----> reqIMUData.py <--- i2c ---> IMU sensors
