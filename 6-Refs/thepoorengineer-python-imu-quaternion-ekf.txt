@@ -1,0 +1,44 @@
+https://thepoorengineer.com/en/ekf-impl/
+
+
+https://electronics.stackexchange.com/questions/39024/how-do-i-get-gyro-sensor-data-l3g4200d-into-degrees-sec
+
+It says the range can be set to 250/500/2000 DPS, which I think is the maximum angular speed the device can measure (i.e 2000 DPS is the fastest setting)
+DPS stands for Degrees Per Second, so 360 DPS means 60 RPM (revolutions per minute) or 1 revolution per second.
+
+The mdps/digit stands for Milli Degrees Per Second, so (I think) for instance the value of 70 mdps/digit for the 2000 full scale range could be converted to degrees per second by dividing by 1 / 0.07 = 14.286. 1 revolution per second should therefore be 360 * 14.286 = 5413 Make sure you are reading the output registers correctly, the data is a 16-bit value in 2's complement (i.e the MSB is the sign bit, then 15 bits for the value)
+
+============
+     15 [14:0]
+Signbit| 15bits      2^7 = 32767     scale: 245 dps, sensitivity: 8.75 mdps/unit  
++ 180    
+- 180 
+
+==== gyroDataX (sign:[14:0]) * .00875 dps  = 32767*.00875 = 286.711 dps
+
+6D60h = 28000 * .00875 = 245 dps 
+
+-----------------------
+
+The first 3 data comes from the gyro, and if you take a look at the data sheet 
+for L3GD20H, you’ll find that there is a [Sensitivity] setting under 
+the [Mechanical Characteristics] section. Since I used the 245 degrees per second 
+[Measurement Range] (line 26 of the Arduino Code), this corresponds to a sensitivity of
+8.75 milli-degrees per second, per digit. This simply means that an increment of
+1 in the raw sensor data is equal to an increment of 8.75 milli-degrees.
+
+As such,
+1) (value * 0.00875)                                    // convert raw gyro sensor data to units of degrees
+2) (value * 0.00875) – 0.464874541896)                  // correct the sensor bias with an offset
+3) ((value * 0.00875) – 0.464874541896) / 180.0 * np.pi // convert units to radians
+
+The calibration of the accelerometer follows the same concept.
+
+
+==== accelerometer:  scale: +/- 2g, sensitivity: 0.061 mg/lsb
+
+accelX (sign:[14:0]) * .061 mg/lsb -> 32767*0.061 = 1999 mg  = 1.999 g
+ 
+==== magnetometer scale: +/- 2 gauss, sensitivity: 0.080 mgaus/lsb
+magX (sign:[14:0]) * 0.080 mgauss/lsb -> 2621.36 mgauss / 1000 =  2.621 gauss
+
