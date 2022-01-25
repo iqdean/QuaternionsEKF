@@ -23,20 +23,21 @@ class ProjectionViewer:
         self.background = (10,10,50)
         self.clock = pygame.time.Clock()
         pygame.font.init()
-        self.font = pygame.font.SysFont('Comic Sans MS', 30)
+        self.font = pygame.font.SysFont('Comic Sans MS', 15)
 
     def run(self, sensorInstance):
         """ Create a pygame screen until it is closed. """
         running = True
-        loopRate = 50
+        #loopRate = 50
+        loopRate = 25
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                    sensorInstance.close()
+                    #sensorInstance.close()
             self.clock.tick(loopRate)
             #data = sensorInstance.getSerialData()
-            data = s.getIMUdata()
+            data = sensorInstance.getIMUdata()
             #                   gx       gy       gz
             angularVeloctiy = [data[0], data[1], data[2]]
             self.wireframe.quatRotate(angularVeloctiy, 1/loopRate)
