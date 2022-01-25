@@ -36,7 +36,7 @@ class IMUread:
 
     def __init__(self):
         self.numBytes2Get = 64
-        self.destination = ('10.0.0.236', 8090)    # server runs on rpi
+        self.destination = ('10.0.0.122', 8090)    # server runs on rpi
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.data = arr.array('i',[64])     # 9 32bit ints = 9x4 = 36 , 9 64bit floats: 9x8 = 72
 
