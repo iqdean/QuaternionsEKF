@@ -1,7 +1,16 @@
+# -----------------------------------------------------------------------------
+# BoardDisplay_naive.py
+#
+# Rev   Date    Who     What
+# 0.1   1/22/21 IAD     Adapted to work with udp socket-based com link to 
+#                       RPI3B+BerryIMUv3 vs serial i/f to arduino+PouluoIMU 
+#------------------------------------------------------------------------------
+
 import Wireframe_naive as wf
 import pygame
 from operator import itemgetter
-import readSensor_naive as rs
+#import readSensor_naive as rs
+import readIMU_naive as imu
 
 class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
@@ -26,7 +35,9 @@ class ProjectionViewer:
                     running = False
                     sensorInstance.close()
             self.clock.tick(loopRate)
-            data = sensorInstance.getSerialData()
+            #data = sensorInstance.getSerialData()
+            data = s.getIMUdata()
+            #                   gx       gy       gz
             angularVeloctiy = [data[0], data[1], data[2]]
             self.wireframe.quatRotate(angularVeloctiy, 1/loopRate)
             self.display()
@@ -135,14 +146,15 @@ def initializeCube():
 
 
 if __name__ == '__main__':
-    portName = '/dev/ttyUSB0'
+    #portName = '/dev/ttyUSB0'
     # portName = 'COM6'
-    baudRate = 115200
-    dataNumBytes = 2  # number of bytes of 1 data point
-    numParams = 9  # number of plots in 1 graph
-    s = rs.SerialRead(portName, baudRate, dataNumBytes, numParams)  # initializes all required variables
-    s.readSerialStart()  # starts background thread
+    #baudRate = 115200
+    #dataNumBytes = 2  # number of bytes of 1 data point
+    #numParams = 9  # number of plots in 1 graph
+    #s = rs.SerialRead(portName, baudRate, dataNumBytes, numParams)  # initializes all required variables
+    #s.readSerialStart()  # starts background thread
 
+    s = imu.IMUread()
     block = initializeCube()
     pv = ProjectionViewer(640, 480, block)
     pv.run(s)
