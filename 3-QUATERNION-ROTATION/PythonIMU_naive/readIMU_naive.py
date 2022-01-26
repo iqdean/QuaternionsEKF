@@ -24,6 +24,25 @@
 #
 #    return gx,gy,gz,ax,ay,az,mx,my,mz
 # -----------------------------------------------------------------------------
+#  LIS3MDL
+# [1] http://www.pibits.net/code/raspberry-pi-and-lis3mdl-magnetic-field-sensor-example-in-python.php#codesyntax_1
+# [2] https://community.st.com/s/question/0D50X00009XkXwiSAF/lis3mdl-data-interpretation
+# [3] https://aerospace.honeywell.com/content/dam/aerobt/en/documents/learn/products/sensors/application-notes/AN203_Compass_Heading_Using_Magnetometers.pdf
+#
+#  From [3] 
+#  The sensor output is linear:    magnetic_intensity (in gauss) = raw_data / sensitivity
+#         raw_count/gauss
+#  FS gauss LSB/gauss               (raw_data)/6842 = gauss  
+#  ±4       6842        (+-4*6842) = (+-27368)/6842 = 4 gauss
+#                     (+-0.5*6842) = (+- 3421)/6842 = 0.5 gauss
+#  ±8       3421 
+#  ±12      2281
+#  ±16      1711
+#
+#  https://en.wikipedia.org/wiki/Earth%27s_magnetic_field#
+#  The magnitude of Earth's magnetic field at its surface ranges from 25 to 65 μT (0.25 to 0.65 gauss)
+#  > seems FS +-8 gauss is way too big but external magnetic field could be way stronger than earths
+#---------------------------------------------------------------------------
 
 import socket
 from struct import pack
@@ -54,33 +73,37 @@ class IMUread:
         # return self.data    # returns a tuple with 9 integer values
         
         # Scale raw sensour counts to convert to proper units Gyro(DPS), Accel(g's), Mag(gauss)
-        # NOTE: All Full Scale (FS) sensitivities set by IMU.initIMU() on RPI3B side
+        # NOTE: All Full Scale (FS) sensitivities for BerryIMUv3 are set by IMU.initIMU() on RPI3B side
 
         # Gyro Angular rate sensitivity
+        # FS = +-250 dps 8.75mdps/LSB   +/- 32768 * .00875   = +/-  287 dps
         # FS = ±2000 dps  70 mdps/LSB   +/- 32768 * .070 dps = +/- 2293 dps
         # TBD:                       gyro.(xyz) offsets = 0
         #                                   |
         # value = ((value * 0.00875) - 0.464874541896) / 180.0 * np.pi
         # Note: output units are in RADIANS/sec = (val.dps)/180*PI
         
-        gx = (self.data[0] * 0.070) / 180 * np.pi
-        gy = (self.data[1] * 0.070) / 180 * np.pi
-        gz = (self.data[2] * 0.070) / 180 * np.pi
+        gx = (self.data[0] * 0.00875) / 180 * np.pi
+        gy = (self.data[1] * 0.00875) / 180 * np.pi
+        gz = (self.data[2] * 0.00875) / 180 * np.pi
 
         # Linear acceleration sensitivity
+        # FS = ±4 g     0.061 mg/LSB   +/- 32768 * .000061 g = +/- 1.99 g
         # FS = ±8 g     0.244 mg/LSB   +/- 32768 * .000244 g = +/- 7.99 g
         # TBD:                   accel.(xyz) offsets = 0
         #                               |
         # value = (value * 0.061) - 48.9882695319
-        ax = (self.data[3] * 0.000244) 
-        ay = (self.data[4] * 0.000244) 
-        az = (self.data[5] * 0.000244)
+        ax = (self.data[3] * 0.000061) 
+        ay = (self.data[4] * 0.000061) 
+        az = (self.data[5] * 0.000061)
 
-        # 3D magnetometer sensitivity (no offset in original readSensor_naive.py)
-        # FS = +-8 gauss    8/27368 = .292 mg/LSB   +/- 27368 * .000292 = +/- 8(gauss)
-        mx = (self.data[6] * .000292)
-        my = (self.data[7] * .000292)
-        mz = (self.data[8] * .000292)
+        #  FS gauss LSB/gauss               (raw_data)/6842 = gauss  
+        #  ±4       6842        (+-4*6842) = (+-27368)/6842 = 4 gauss
+        #                     (+-0.5*6842) = (+- 3421)/6842 = 0.5 gauss
+        #                                   1/6842 = 0.000146
+        mx = (self.data[6] * .000146)
+        my = (self.data[7] * .000146)
+        mz = (self.data[8] * .000146)
 
 	# for debug
         #print('gyro radians: x = {0:2.2f}, y = {1:2.2f}, z = {2:2.2f}'.format(gx,gy,gz))
